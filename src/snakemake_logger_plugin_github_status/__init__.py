@@ -36,7 +36,7 @@ class LogHandler(LogHandlerBase):
                 f"No tracking branch of current git branch {branch}. Make sure that your local repo is pushed."
             )
 
-        self._github_sha = tracking_branch.commit.sha
+        self._github_sha = tracking_branch.commit.hexsha
         self._errors = defaultdict(int)
         self._progress_done = 0
         self._progress_total = 0
@@ -84,10 +84,11 @@ class LogHandler(LogHandlerBase):
         return False
 
     def emit(self, record: LogRecord) -> None:
-        if record.event == LogEvent.PROGRESS:
+        event = getattr(record, "event", None)
+        if event == LogEvent.PROGRESS:
             self._progress_done = record.done
             self._progress_total = record.total
-        elif record.event == LogEvent.JOB_ERROR:
+        elif event == LogEvent.JOB_ERROR:
             self._errors[record.rule_name] += 1
         else:
             return

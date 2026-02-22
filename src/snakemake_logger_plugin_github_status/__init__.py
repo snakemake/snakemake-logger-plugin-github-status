@@ -1,0 +1,123 @@
+from collections import defaultdict
+import os
+from logging import LogRecord
+import subprocess as sp
+
+from git import Repo
+import requests
+
+from snakemake_interface_logger_plugins.base import LogHandlerBase
+from snakemake_interface_logger_plugins.common import LogEvent
+from snakemake_interface_common.exceptions import WorkflowError
+
+
+class LogHandler(LogHandlerBase):
+    def __post_init__(self) -> None:
+        try:
+            self._github_token = os.environ["GITHUB_TOKEN"]
+        except KeyError:
+            try:
+                res = sp.run(["gh", "auth", "token"], capture_output=True, text=True)
+            except sp.CalledProcessError as e:
+                raise WorkflowError(
+                    f"Unable to retrieve $GITHUB_TOKEN. Either set one manually or authenticate using 'gh auth login'. Error: {e.stderr}"
+                )
+            self._github_token = res.stdout
+
+        self._repo = Repo(os.getcwd())
+        self._github_repo_name = "/".join(
+            self._repo.remotes.origin.url.rstrip(".git").split(":")[1].split("/")[-2:]
+        )
+        self._repo.remotes.origin.fetch()
+        branch = self._repo.active_branch
+        tracking_branch = branch.tracking_branch()
+        if tracking_branch is None:
+            raise WorkflowError(
+                f"No tracking branch of current git branch {branch}. Make sure that your local repo is pushed."
+            )
+
+        self._github_sha = tracking_branch.commit.sha
+        self._errors = defaultdict(int)
+        self._progress_done = 0
+        self._progress_total = 0
+        self._headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {self._github_token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+    @property
+    def writes_to_stream(self) -> bool:
+        # Whether this plugin writes to stderr/stdout.
+        # If your plugin writes to stderr/stdout, return
+        # true so that Snakemake disables its stderr logging.
+        return False
+
+    @property
+    def writes_to_file(self) -> bool:
+        # Whether this plugin writes to a file.
+        # If your plugin writes log output to a file, return
+        # true so that Snakemake can report your logfile path at workflow end.
+        return False
+
+    @property
+    def has_filter(self) -> bool:
+        # Whether this plugin attaches its own filter.
+        # Return true if your plugin provides custom log filtering logic.
+        # If false is returned, Snakemake's DefaultFilter will be attached see: https://github.com/snakemake/snakemake/blob/960f6a89eaa31da6014e810dfcf08f635ac03a6e/src/snakemake/logging.py#L372 # noqa: E501
+        # See https://docs.python.org/3/library/logging.html#filter-objects for info on how to define and attach a Filter
+        return False
+
+    @property
+    def has_formatter(self) -> bool:
+        # Whether this plugin attaches its own formatter.
+        # Return true if your plugin provides custom log formatting logic.
+        # If false is returned, Snakemake's Defaultformatter will be attached see: https://github.com/snakemake/snakemake/blob/960f6a89eaa31da6014e810dfcf08f635ac03a6e/src/snakemake/logging.py#L132 # noqa: E501
+        # See https://docs.python.org/3/library/logging.html#formatter-objects for info on how to define and attach a Formatter
+        return True
+
+    @property
+    def needs_rulegraph(self) -> bool:
+        # Whether this plugin requires the DAG rulegraph.
+        # Return true if your plugin needs access to the workflow's
+        # directed acyclic graph for logging purposes.
+        return False
+
+    def emit(self, record: LogRecord) -> None:
+        if record.event == LogEvent.PROGRESS:
+            self._progress_done = record.done
+            self._progress_total = record.total
+        elif record.event == LogEvent.JOB_ERROR:
+            self._errors[record.rule_name] += 1
+        else:
+            return
+
+        top3 = sorted(
+            self._errors.keys(),
+            key=lambda rulename: self._errors[rulename],
+            reverse=True,
+        )[:3]
+        dots = "..." if len(self._errors) > 3 else ""
+        errors = " ".join(f"{rulename}={self._errors[rulename]}" for rulename in top3)
+
+        description = (
+            f"progress: {self._progress_done}/{self._progress_total} ({self._progress_done / self._progress_total:.2%})\n"
+            f"errors: {errors} {dots}"
+        )
+        if self._errors:
+            state = "failed"
+        elif self._progress_done == self._progress_total:
+            state = "success"
+        else:
+            state = "pending"
+
+        res = requests.post(
+            f"https://api.github.com/repos/{self._github_repo_name}/statuses/{self._github_sha}",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {self._github_token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            data={"state": state, "context": "snakemake", "description": description},
+        )
+        res.raise_for_status()

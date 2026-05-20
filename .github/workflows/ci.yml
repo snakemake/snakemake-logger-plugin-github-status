@@ -45,6 +45,8 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     steps:
       - uses: actions/checkout@v6
 

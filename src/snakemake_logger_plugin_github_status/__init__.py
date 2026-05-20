@@ -125,7 +125,7 @@ class LogHandler(LogHandlerBase):
             description = description[:137] + "..."
         print(description)
         if self._errors:
-            self.state = "failed"
+            self.state = "failure"
         elif self._progress_done == self._progress_total:
             self.state = "success"
         else:

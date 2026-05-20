@@ -1,3 +1,5 @@
+from typing import Dict
+from typing import Optional
 from collections import defaultdict
 import os
 from logging import LogRecord
@@ -37,9 +39,10 @@ class LogHandler(LogHandlerBase):
             )
 
         self._github_sha = tracking_branch.commit.hexsha
-        self._errors = defaultdict(int)
-        self._progress_done = 0
-        self._progress_total = 0
+        self._errors: Dict[str, int] = defaultdict(int)
+        self._progress_done: int = 0
+        self._progress_total: Optional[int] = None
+        self.state: Optional[str] = None
         self._headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {self._github_token}",
@@ -90,7 +93,10 @@ class LogHandler(LogHandlerBase):
             self._progress_total = record.total
         elif event == LogEvent.JOB_ERROR:
             self._errors[record.rule_name] += 1
-        else:
+        elif self.state is not None:
+            # we already have reported that the workflow runs, thus we can ignore
+            # any non-progress and non-error events, as they won't change the reported
+            # state
             return
 
         top3 = sorted(
@@ -101,16 +107,21 @@ class LogHandler(LogHandlerBase):
         dots = "..." if len(self._errors) > 3 else ""
         errors = " ".join(f"{rulename}={self._errors[rulename]}" for rulename in top3)
 
-        description = (
-            f"progress: {self._progress_done}/{self._progress_total} ({self._progress_done / self._progress_total:.2%})\n"
-            f"errors: {errors} {dots}"
-        )
-        if self._errors:
-            state = "failed"
-        elif self._progress_done == self._progress_total:
-            state = "success"
+        if self._progress_total is not None:
+            progress = (
+                f"{self._progress_done}/{self._progress_total} "
+                f"({self._progress_done / self._progress_total:.2%})\n"
+            )
         else:
-            state = "pending"
+            progress = f"{self._progress_done}/n\n"
+
+        description = f"{progress}errors: {errors} {dots}"
+        if self._errors:
+            self.state = "failed"
+        elif self._progress_done == self._progress_total:
+            self.state = "success"
+        else:
+            self.state = "pending"
 
         res = requests.post(
             f"https://api.github.com/repos/{self._github_repo_name}/statuses/{self._github_sha}",
@@ -119,6 +130,10 @@ class LogHandler(LogHandlerBase):
                 "Authorization": f"Bearer {self._github_token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
-            data={"state": state, "context": "snakemake", "description": description},
+            data={
+                "state": self.state,
+                "context": "snakemake",
+                "description": description,
+            },
         )
         res.raise_for_status()

@@ -106,18 +106,20 @@ class LogHandler(LogHandlerBase):
             key=lambda rulename: self._errors[rulename],
             reverse=True,
         )[:3]
-        dots = "..." if len(self._errors) > 3 else ""
+        dots = " ..." if len(self._errors) > 3 else ""
         errors = " ".join(f"{rulename}={self._errors[rulename]}" for rulename in top3)
+        if errors:
+            errors = f" | errors: {errors}{dots}"
 
         if self._progress_total is not None:
             progress = (
                 f"{self._progress_done}/{self._progress_total} "
-                f"({self._progress_done / self._progress_total:.2%})\n"
+                f"({self._progress_done / self._progress_total:.2%})"
             )
         else:
-            progress = f"{self._progress_done}/n\n"
+            progress = f"{self._progress_done}/n"
 
-        description = f"{progress}errors: {errors} {dots}"
+        description = f"progress: {progress}{errors}"
         if len(description) > 140:
             # description field of GitHub status API has a max length of 140 characters
             description = description[:137] + "..."

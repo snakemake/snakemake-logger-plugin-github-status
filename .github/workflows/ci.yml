@@ -5,11 +5,10 @@ on:
     branches:
       - main
   pull_request:
-    branches-ignore:
-      - release-please-*
 
 jobs:
   format:
+    if: "!startsWith(github.head_ref, 'release-please')"
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
@@ -22,6 +21,7 @@ jobs:
         run: pixi run format --check
 
   lint:
+    if: "!startsWith(github.head_ref, 'release-please')"
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
@@ -34,6 +34,7 @@ jobs:
         run: pixi run lint
 
   typecheck:
+    if: "!startsWith(github.head_ref, 'release-please')"
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code
@@ -46,6 +47,7 @@ jobs:
         run: pixi run typecheck
 
   test:
+    if: "!startsWith(github.head_ref, 'release-please')"
     runs-on: ubuntu-latest
     permissions:
       statuses: write

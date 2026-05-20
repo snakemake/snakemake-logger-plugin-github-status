@@ -118,6 +118,9 @@ class LogHandler(LogHandlerBase):
             progress = f"{self._progress_done}/n\n"
 
         description = f"{progress}errors: {errors} {dots}"
+        if len(description) > 140:
+            # description field of GitHub status API has a max length of 140 characters
+            description = description[:137] + "..."
         if self._errors:
             self.state = "failed"
         elif self._progress_done == self._progress_total:
@@ -142,7 +145,7 @@ class LogHandler(LogHandlerBase):
                 "Authorization": f"Bearer {self._github_token}",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
-            data={
+            json={
                 "state": self.state,
                 "context": "snakemake",
                 "description": description,

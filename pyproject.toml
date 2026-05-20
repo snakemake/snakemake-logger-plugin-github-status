@@ -1,5 +1,5 @@
 [project]
-dependencies = [ "snakemake-interface-common>=1.22.0,<2", "snakemake-interface-logger-plugins>=2.0.0,<3", "requests>=2.32.5,<3", "gitpython>=3.1.46,<4",]
+dependencies = [ "snakemake-interface-common>=1.22.0,<2", "snakemake-interface-logger-plugins>=2.0.1,<3", "requests>=2.32.5,<3", "gitpython>=3.1.46,<4",]
 name = "snakemake-logger-plugin-github-status"
 requires-python = ">=3.11,<4.0"
 version = "0.1.0"

@@ -1,3 +1,4 @@
+import time
 from typing import Dict
 from typing import Optional
 from collections import defaultdict
@@ -43,6 +44,7 @@ class LogHandler(LogHandlerBase):
         self._progress_done: int = 0
         self._progress_total: Optional[int] = None
         self.state: Optional[str] = None
+        self._last_emit_timestamp: Optional[float] = None
         self._headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {self._github_token}",
@@ -123,6 +125,16 @@ class LogHandler(LogHandlerBase):
         else:
             self.state = "pending"
 
+        if (
+            self._last_emit_timestamp is not None
+            and time.time() - self._last_emit_timestamp < 5
+            and not self.state == "success"
+        ):
+            # Avoid emitting too often, as this can cause rate-limiting issues with the GitHub API
+            # Exception: we always emit on "success"
+            return
+
+        self._last_emit_timestamp = time.time()
         res = requests.post(
             f"https://api.github.com/repos/{self._github_repo_name}/statuses/{self._github_sha}",
             headers={

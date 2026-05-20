@@ -32,7 +32,6 @@ jobs:
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0
         with:
-          cache: true
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Build source and wheel distribution + check build

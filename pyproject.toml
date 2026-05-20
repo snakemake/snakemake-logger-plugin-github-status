@@ -2,7 +2,7 @@
 dependencies = [ "snakemake-interface-common>=1.22.0,<2", "snakemake-interface-logger-plugins>=2.1.0,<3", "requests>=2.32.5,<3", "gitpython>=3.1.46,<4",]
 name = "snakemake-logger-plugin-github-status"
 requires-python = ">=3.11,<4.0"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Snakemake logger plugin that reports workflow progress and errors to the GitHub status API."
 readme = "README.md"
 license = "MIT"

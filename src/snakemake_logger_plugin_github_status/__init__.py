@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import time
 from typing import Dict
 from typing import Optional
@@ -12,6 +13,18 @@ import requests
 from snakemake_interface_logger_plugins.base import LogHandlerBase
 from snakemake_interface_logger_plugins.common import LogEvent
 from snakemake_interface_common.exceptions import WorkflowError
+from snakemake_interface_logger_plugins.settings import LogHandlerSettingsBase
+
+
+@dataclass
+class LogHandlerSettings(LogHandlerSettingsBase):
+    run_name: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Name for the current workflow run. "
+            "This is used to identify the workflow run in the GitHub status.",
+        },
+    )
 
 
 class LogHandler(LogHandlerBase):
@@ -31,15 +44,11 @@ class LogHandler(LogHandlerBase):
         self._github_repo_name = "/".join(
             self._repo.remotes.origin.url.rstrip(".git").split(":")[1].split("/")[-2:]
         )
-        self._repo.remotes.origin.fetch()
-        branch = self._repo.active_branch
-        tracking_branch = branch.tracking_branch()
-        if tracking_branch is None:
-            raise WorkflowError(
-                f"No tracking branch of current git branch {branch}. Make sure that your local repo is pushed."
-            )
 
-        self._github_sha = tracking_branch.commit.hexsha
+        # Use the currently checked-out commit. This works in normal branches and in
+        # GitHub Actions where the checkout is often in detached HEAD state.
+        self._github_sha = self._repo.head.commit.hexsha
+
         self._errors: Dict[str, int] = defaultdict(int)
         self._progress_done: int = 0
         self._progress_total: Optional[int] = None
@@ -140,6 +149,10 @@ class LogHandler(LogHandlerBase):
             # Exception: we always emit on "success"
             return
 
+        context = "snakemake"
+        if self.settings.run_name:
+            context += f": {self.settings.run_name}"
+
         self._last_emit_timestamp = time.time()
         res = requests.post(
             f"https://api.github.com/repos/{self._github_repo_name}/statuses/{self._github_sha}",
@@ -150,7 +163,7 @@ class LogHandler(LogHandlerBase):
             },
             json={
                 "state": self.state,
-                "context": "snakemake",
+                "context": context,
                 "description": description,
             },
         )

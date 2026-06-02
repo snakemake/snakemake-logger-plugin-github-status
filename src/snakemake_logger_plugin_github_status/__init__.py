@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import time
 from typing import Dict
 from typing import Optional
@@ -12,6 +13,18 @@ import requests
 from snakemake_interface_logger_plugins.base import LogHandlerBase
 from snakemake_interface_logger_plugins.common import LogEvent
 from snakemake_interface_common.exceptions import WorkflowError
+from snakemake_interface_logger_plugins.settings import LogHandlerSettingsBase
+
+
+@dataclass
+class LogHandlerSettings(LogHandlerSettingsBase):
+    run_name: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Name for the current workflow run. "
+            "This is used to identify the workflow run in the GitHub status.",
+        },
+    )
 
 
 class LogHandler(LogHandlerBase):
@@ -140,6 +153,10 @@ class LogHandler(LogHandlerBase):
             # Exception: we always emit on "success"
             return
 
+        context = "snakemake"
+        if self.settings.run_name:
+            context += f": {self.settings.run_name}"
+
         self._last_emit_timestamp = time.time()
         res = requests.post(
             f"https://api.github.com/repos/{self._github_repo_name}/statuses/{self._github_sha}",
@@ -150,7 +167,7 @@ class LogHandler(LogHandlerBase):
             },
             json={
                 "state": self.state,
-                "context": "snakemake",
+                "context": context,
                 "description": description,
             },
         )

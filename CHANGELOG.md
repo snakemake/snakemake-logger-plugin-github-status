@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/snakemake/snakemake-logger-plugin-github-status/compare/v0.1.2...v0.2.0) (2026-06-02)
+
+
+### Features
+
+* allow to specify run name ([#4](https://github.com/snakemake/snakemake-logger-plugin-github-status/issues/4)) ([23cb6df](https://github.com/snakemake/snakemake-logger-plugin-github-status/commit/23cb6dfbd35774272bc1a239312e2d936bfce330))
+
 ## [0.1.2](https://github.com/snakemake/snakemake-logger-plugin-github-status/compare/v0.1.1...v0.1.2) (2026-05-20)
 
 

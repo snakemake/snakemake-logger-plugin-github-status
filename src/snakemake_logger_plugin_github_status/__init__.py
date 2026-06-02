@@ -44,15 +44,11 @@ class LogHandler(LogHandlerBase):
         self._github_repo_name = "/".join(
             self._repo.remotes.origin.url.rstrip(".git").split(":")[1].split("/")[-2:]
         )
-        self._repo.remotes.origin.fetch()
-        branch = self._repo.active_branch
-        tracking_branch = branch.tracking_branch()
-        if tracking_branch is None:
-            raise WorkflowError(
-                f"No tracking branch of current git branch {branch}. Make sure that your local repo is pushed."
-            )
 
-        self._github_sha = tracking_branch.commit.hexsha
+        # Use the currently checked-out commit. This works in normal branches and in
+        # GitHub Actions where the checkout is often in detached HEAD state.
+        self._github_sha = self._repo.head.commit.hexsha
+
         self._errors: Dict[str, int] = defaultdict(int)
         self._progress_done: int = 0
         self._progress_total: Optional[int] = None

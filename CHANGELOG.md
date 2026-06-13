@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/snakemake/snakemake-logger-plugin-github-status/compare/v0.2.0...v0.3.0) (2026-06-13)
+
+
+### Miscellaneous Chores
+
+* release 0.3.0 ([a3119d7](https://github.com/snakemake/snakemake-logger-plugin-github-status/commit/a3119d7f5f28f7d776c3a93845b4a35038d088f7))
+
 ## [0.2.0](https://github.com/snakemake/snakemake-logger-plugin-github-status/compare/v0.1.2...v0.2.0) (2026-06-02)
 
 

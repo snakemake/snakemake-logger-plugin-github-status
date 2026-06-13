@@ -128,7 +128,7 @@ class LogHandler(LogHandlerBase):
         else:
             progress = f"{self._progress_done}/n"
 
-        description = f"progress: {progress}{errors}"
+        description = f"{progress}{errors}"
         if len(description) > 140:
             # description field of GitHub status API has a max length of 140 characters
             description = description[:137] + "..."
